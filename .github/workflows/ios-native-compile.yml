@@ -22,8 +22,8 @@ jobs:
           node-version: 22.16.0
           cache: npm
 
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
 
       - name: Verify native dependency versions
         run: npm ls expo expo-modules-core react-native react-native-reanimated react-native-worklets
