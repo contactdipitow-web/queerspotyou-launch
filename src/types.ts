@@ -1,0 +1,56 @@
+export type AppRole = 'member' | 'moderator' | 'admin';
+
+export type Venue = {
+  id: string;
+  name: string;
+  slug?: string | null;
+  category_id?: number | null;
+  category_label?: string | null;
+  address_line: string;
+  postal_code?: string | null;
+  city: string;
+  latitude: number;
+  longitude: number;
+  description?: string | null;
+  queer_context?: string | null;
+  website_url?: string | null;
+  instagram_url?: string | null;
+  price_level?: number | null;
+  published_at?: string | null;
+  distance_meters?: number | null;
+};
+
+export type Category = {
+  id: number;
+  slug: string;
+  label: string;
+  icon_name?: string | null;
+};
+
+export type SpotlightItem = {
+  id: string;
+  slug: string;
+  kind: string;
+  title: string;
+  eyebrow?: string | null;
+  summary?: string | null;
+  image_url?: string | null;
+  link_url?: string | null;
+  cta_label?: string | null;
+  venue_id?: string | null;
+  partner_name?: string | null;
+  is_priority: boolean;
+  is_sponsored: boolean;
+  is_published: boolean;
+  sort_order: number;
+  starts_at?: string | null;
+  ends_at?: string | null;
+};
+
+export type AdminStats = {
+  pending_venues: number;
+  published_venues: number;
+  members: number;
+  open_reports: number;
+  suspended_members: number;
+};

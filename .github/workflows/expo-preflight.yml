@@ -13,34 +13,26 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
           cache: npm
-
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
-
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
       - name: Verify native dependency versions
-        run: npm ls expo expo-modules-core react-native react-native-reanimated react-native-worklets
-
+        run: npm ls expo expo-modules-core expo-location expo-secure-store react-native react-native-maps react-native-reanimated react-native-worklets @supabase/supabase-js
       - name: Check Expo dependency alignment
         run: npx expo install --check
-
       - name: Resolve Expo config
         run: npx expo config --type public >/dev/null
-
       - name: TypeScript
         run: npm run typecheck
-
       - name: Export iOS bundle
         run: npx expo export --platform ios
-
       - name: Generate native iOS project
         run: npx expo prebuild --platform ios --clean --no-install

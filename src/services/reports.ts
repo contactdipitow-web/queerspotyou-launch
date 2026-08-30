@@ -1,0 +1,2 @@
+import { supabase } from '@/lib/supabase';
+export async function submitVenueReport(venueId: string, details: string, reason = 'other') { const { data: auth } = await supabase.auth.getUser(); if (!auth.user) throw new Error('Connectez-vous pour signaler un établissement.'); const { error } = await supabase.from('reports').insert({ reporter_user_id: auth.user.id, target_type: 'venue', target_id: venueId, reason, details: details.trim() || null, status: 'open' }); if (error) throw error; }
