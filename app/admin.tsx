@@ -8,18 +8,136 @@ import { getAdminStats, handleReport, moderateVenue, staffListReports, staffList
 import { adminCreateSpotlight, adminDeleteSpotlight, adminListSpotlight, adminUpdateSpotlight } from '@/services/spotlight';
 import type { AdminStats, SpotlightItem } from '@/types';
 import { colors } from '@/theme';
+
 export default function AdminScreen() {
   const { role } = useAuth();
   const [tab, setTab] = useState<'dashboard' | 'spotlight' | 'venues' | 'reports'>('dashboard');
-  const [loading, setLoading] = useState(true); const [stats, setStats] = useState<AdminStats | null>(null); const [spotlight, setSpotlight] = useState<SpotlightItem[]>([]); const [venues, setVenues] = useState<any[]>([]); const [reports, setReports] = useState<any[]>([]); const [newTitle, setNewTitle] = useState(''); const [newLink, setNewLink] = useState('');
-  const load = useCallback(async () => { if (role !== 'admin' && role !== 'moderator') return; setLoading(true); const [s, v, r] = await Promise.all([role === 'admin' ? adminListSpotlight().catch(() => []) : Promise.resolve([]), staffListVenues(role).catch(() => []), staffListReports(role).catch(() => [])]); setSpotlight(s); setVenues(v); setReports(r); if (role === 'admin') setStats(await getAdminStats().catch(() => null)); setLoading(false); }, [role]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [spotlight, setSpotlight] = useState<SpotlightItem[]>([]);
+  const [venues, setVenues] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [newTitle, setNewTitle] = useState('');
+  const [newLink, setNewLink] = useState('');
+
+  const load = useCallback(async () => {
+    if (role !== 'admin' && role !== 'moderator') return;
+    setLoading(true);
+    const [s, v, r] = await Promise.all([
+      role === 'admin' ? adminListSpotlight().catch(() => []) : Promise.resolve([]),
+      staffListVenues(role).catch(() => []),
+      staffListReports(role).catch(() => []),
+    ]);
+    setSpotlight(s);
+    setVenues(v);
+    setReports(r);
+    if (role === 'admin') setStats(await getAdminStats().catch(() => null));
+    setLoading(false);
+  }, [role]);
+
   useEffect(() => { void load(); }, [load]);
-  if (role !== 'admin' && role !== 'moderator') return <Screen><View style={styles.denied}><Text style={styles.title}>Accès réservé</Text><Button label="Retour" onPress={() => router.back()} /></View></Screen>;
-  const move = async (item: SpotlightItem, delta: number) => { const index = spotlight.findIndex((x) => x.id === item.id); const other = spotlight[index + delta]; if (!other) return; await Promise.all([adminUpdateSpotlight(item.id, { sort_order: other.sort_order }), adminUpdateSpotlight(other.id, { sort_order: item.sort_order })]); await load(); };
-  const setDuration = async (item: SpotlightItem, days: number | null) => { const starts = new Date(); const ends = days ? new Date(starts.getTime() + days * 86400000) : null; await adminUpdateSpotlight(item.id, { starts_at: starts.toISOString(), ends_at: ends?.toISOString() ?? null, is_published: true }); await load(); };
-  const create = async () => { if (!newTitle.trim()) return; const slug = `${newTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now().toString(36)}`; try { await adminCreateSpotlight({ slug, kind: 'news', title: newTitle.trim(), link_url: newLink.trim() || null, eyebrow: 'ACTUALITÉ', summary: null, image_url: null, cta_label: newLink.trim() ? 'Découvrir' : null, establishment_id: null, partner_name: null, is_priority: false, is_sponsored: false, is_published: true, sort_order: (spotlight.at(-1)?.sort_order ?? 0) + 10, starts_at: new Date().toISOString(), ends_at: null }); setNewTitle(''); setNewLink(''); await load(); } catch (error: any) { Alert.alert('Création impossible', error?.message ?? 'Erreur'); } };
-  return <Screen><ScrollView contentContainerStyle={styles.container}><BrandHeader compact /><Text style={styles.kicker}>{role === 'admin' ? 'ADMINISTRATION' : 'MODÉRATION'}</Text><Text style={styles.title}>Piloter QUEERSPOT YOU depuis l’app.</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 14 }}><Pill label="Tableau de bord" active={tab === 'dashboard'} onPress={() => setTab('dashboard')} />{role === 'admin' && <Pill label="À la une" active={tab === 'spotlight'} onPress={() => setTab('spotlight')} />}<Pill label="Spots" active={tab === 'venues'} onPress={() => setTab('venues')} /><Pill label="Signalements" active={tab === 'reports'} onPress={() => setTab('reports')} /></ScrollView>
-  {loading ? <ActivityIndicator color={colors.fuchsia} /> : tab === 'dashboard' ? <View style={styles.grid}>{stats ? Object.entries(stats).map(([key, value]) => <Card key={key}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{key.replaceAll('_', ' ')}</Text></Card>) : <Text style={styles.muted}>Les statistiques globales sont réservées à l’administrateur.</Text>}</View> : tab === 'spotlight' ? <View style={{ gap: 12 }}><Card><Text style={styles.sectionTitle}>Créer une actualité</Text><View style={{ gap: 8, marginTop: 10 }}><Input value={newTitle} onChangeText={setNewTitle} placeholder="Titre" /><Input value={newLink} onChangeText={setNewLink} autoCapitalize="none" placeholder="Lien (facultatif)" /><Button label="Publier" onPress={() => void create()} /></View></Card>{spotlight.map((item, index) => <Card key={item.id}><Text style={styles.eyebrow}>{item.eyebrow ?? item.kind.toUpperCase()}</Text><Text style={styles.itemTitle}>{item.title}</Text><Text style={styles.meta}>Ordre {item.sort_order} · {item.is_published ? 'Publié' : 'Masqué'}{item.ends_at ? ` · fin ${new Date(item.ends_at).toLocaleDateString('fr-FR')}` : ' · sans limite'}</Text><View style={styles.actions}><Button label="↑" variant="secondary" disabled={index === 0} onPress={() => void move(item, -1)} /><Button label="↓" variant="secondary" disabled={index === spotlight.length - 1} onPress={() => void move(item, 1)} /><Button label={item.is_published ? 'Masquer' : 'Publier'} variant="secondary" onPress={() => void adminUpdateSpotlight(item.id, { is_published: !item.is_published }).then(load)} /></View><View style={styles.actions}><Button label="7 j" variant="secondary" onPress={() => void setDuration(item, 7)} /><Button label="30 j" variant="secondary" onPress={() => void setDuration(item, 30)} /><Button label="∞" variant="secondary" onPress={() => void setDuration(item, null)} /></View><Button label="Supprimer" variant="danger" onPress={() => Alert.alert('Supprimer ?', item.title, [{ text: 'Annuler', style: 'cancel' }, { text: 'Supprimer', style: 'destructive', onPress: () => void adminDeleteSpotlight(item.id).then(load) }])} /></Card>)}</View> : tab === 'venues' ? <View style={{ gap: 10 }}>{venues.map((venue) => <Card key={venue.id}><Text style={styles.itemTitle}>{venue.name}</Text><Text style={styles.meta}>{venue.status} · {venue.address_line ?? venue.city ?? ''}</Text><View style={styles.actions}><Button label="Publier" variant="secondary" onPress={() => void moderateVenue(role, venue.id, 'publish').then(load)} /><Button label="Rejeter" variant="secondary" onPress={() => void moderateVenue(role, venue.id, 'reject').then(load)} /><Button label="Masquer" variant="secondary" onPress={() => void moderateVenue(role, venue.id, 'hide').then(load)} /></View></Card>)}</View> : <View style={{ gap: 10 }}>{reports.length ? reports.map((report) => <Card key={report.id}><Text style={styles.itemTitle}>{report.target_label ?? report.reason ?? 'Signalement'}</Text><Text style={styles.meta}>{report.reason} · {report.status}</Text>{report.details && <Text style={styles.muted}>{report.details}</Text>}<View style={styles.actions}><Button label="Prendre" variant="secondary" onPress={() => void handleReport(role, report.id, 'take').then(load)} /><Button label="Résoudre" variant="secondary" onPress={() => void handleReport(role, report.id, 'resolve').then(load)} /><Button label="Classer" variant="secondary" onPress={() => void handleReport(role, report.id, 'dismiss').then(load)} /></View></Card>) : <Text style={styles.muted}>Aucun signalement ouvert.</Text>}</View>}
+
+  if (role !== 'admin' && role !== 'moderator') {
+    return <Screen><View style={styles.denied}><Text style={styles.title}>Accès réservé</Text><Button label="Retour" onPress={() => router.back()} /></View></Screen>;
+  }
+
+  const move = async (item: SpotlightItem, delta: number) => {
+    const index = spotlight.findIndex((x) => x.id === item.id);
+    const other = spotlight[index + delta];
+    if (!other) return;
+    await Promise.all([
+      adminUpdateSpotlight(item.id, { sort_order: other.sort_order }),
+      adminUpdateSpotlight(other.id, { sort_order: item.sort_order }),
+    ]);
+    await load();
+  };
+
+  const setDuration = async (item: SpotlightItem, days: number | null) => {
+    const starts = new Date();
+    const ends = days ? new Date(starts.getTime() + days * 86400000) : null;
+    await adminUpdateSpotlight(item.id, {
+      starts_at: starts.toISOString(),
+      ends_at: ends?.toISOString() ?? null,
+      is_published: true,
+    });
+    await load();
+  };
+
+  const create = async () => {
+    if (!newTitle.trim()) return;
+    const slug = `${newTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now().toString(36)}`;
+    try {
+      await adminCreateSpotlight({
+        slug,
+        kind: 'news',
+        title: newTitle.trim(),
+        link_url: newLink.trim() || null,
+        eyebrow: 'ACTUALITÉ',
+        summary: null,
+        image_url: null,
+        cta_label: newLink.trim() ? 'Découvrir' : null,
+        venue_id: null,
+        partner_name: null,
+        is_priority: false,
+        is_sponsored: false,
+        is_published: true,
+        sort_order: (spotlight.at(-1)?.sort_order ?? 0) + 10,
+        starts_at: new Date().toISOString(),
+        ends_at: null,
+      });
+      setNewTitle('');
+      setNewLink('');
+      await load();
+    } catch (error: any) {
+      Alert.alert('Création impossible', error?.message ?? 'Erreur');
+    }
+  };
+
+  return <Screen><ScrollView contentContainerStyle={styles.container}>
+    <BrandHeader compact />
+    <Text style={styles.kicker}>{role === 'admin' ? 'ADMINISTRATION' : 'MODÉRATION'}</Text>
+    <Text style={styles.title}>Piloter QUEERSPOT YOU depuis l’app.</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 14 }}>
+      <Pill label="Tableau de bord" active={tab === 'dashboard'} onPress={() => setTab('dashboard')} />
+      {role === 'admin' && <Pill label="À la une" active={tab === 'spotlight'} onPress={() => setTab('spotlight')} />}
+      <Pill label="Spots" active={tab === 'venues'} onPress={() => setTab('venues')} />
+      <Pill label="Signalements" active={tab === 'reports'} onPress={() => setTab('reports')} />
+    </ScrollView>
+
+    {loading ? <ActivityIndicator color={colors.fuchsia} /> : tab === 'dashboard' ? (
+      <View style={styles.grid}>{stats ? Object.entries(stats).map(([key, value]) => <Card key={key}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{key.replaceAll('_', ' ')}</Text></Card>) : <Text style={styles.muted}>Les statistiques globales sont réservées à l’administrateur.</Text>}</View>
+    ) : tab === 'spotlight' ? (
+      <View style={{ gap: 12 }}>
+        <Card><Text style={styles.sectionTitle}>Créer une actualité</Text><View style={{ gap: 8, marginTop: 10 }}><Input value={newTitle} onChangeText={setNewTitle} placeholder="Titre" /><Input value={newLink} onChangeText={setNewLink} autoCapitalize="none" placeholder="Lien (facultatif)" /><Button label="Publier" onPress={() => void create()} /></View></Card>
+        {spotlight.map((item, index) => <Card key={item.id}>
+          <Text style={styles.eyebrow}>{item.eyebrow ?? item.kind.toUpperCase()}</Text>
+          <Text style={styles.itemTitle}>{item.title}</Text>
+          <Text style={styles.meta}>Ordre {item.sort_order} · {item.is_published ? 'Publié' : 'Masqué'}{item.ends_at ? ` · fin ${new Date(item.ends_at).toLocaleDateString('fr-FR')}` : ' · sans limite'}</Text>
+          <View style={styles.actions}><Button label="↑" variant="secondary" disabled={index === 0} onPress={() => void move(item, -1)} /><Button label="↓" variant="secondary" disabled={index === spotlight.length - 1} onPress={() => void move(item, 1)} /><Button label={item.is_published ? 'Masquer' : 'Publier'} variant="secondary" onPress={() => void adminUpdateSpotlight(item.id, { is_published: !item.is_published }).then(load)} /></View>
+          <View style={styles.actions}><Button label="7 j" variant="secondary" onPress={() => void setDuration(item, 7)} /><Button label="30 j" variant="secondary" onPress={() => void setDuration(item, 30)} /><Button label="∞" variant="secondary" onPress={() => void setDuration(item, null)} /></View>
+          <Button label="Supprimer" variant="danger" onPress={() => Alert.alert('Supprimer ?', item.title, [{ text: 'Annuler', style: 'cancel' }, { text: 'Supprimer', style: 'destructive', onPress: () => void adminDeleteSpotlight(item.id).then(load) }])} />
+        </Card>)}
+      </View>
+    ) : tab === 'venues' ? (
+      <View style={{ gap: 10 }}>{venues.map((venue) => <Card key={venue.id}><Text style={styles.itemTitle}>{venue.name}</Text><Text style={styles.meta}>{venue.status} · {venue.address_line ?? venue.city ?? ''}</Text><View style={styles.actions}><Button label="Publier" variant="secondary" onPress={() => void moderateVenue(role, venue.id, 'publish').then(load)} /><Button label="Rejeter" variant="secondary" onPress={() => void moderateVenue(role, venue.id, 'reject').then(load)} /><Button label="Masquer" variant="secondary" onPress={() => void moderateVenue(role, venue.id, 'hide').then(load)} /></View></Card>)}</View>
+    ) : (
+      <View style={{ gap: 10 }}>{reports.length ? reports.map((report) => <Card key={report.id}><Text style={styles.itemTitle}>{report.target_label ?? report.reason ?? 'Signalement'}</Text><Text style={styles.meta}>{report.reason} · {report.status}</Text>{report.details && <Text style={styles.muted}>{report.details}</Text>}<View style={styles.actions}><Button label="Prendre" variant="secondary" onPress={() => void handleReport(role, report.id, 'take').then(load)} /><Button label="Résoudre" variant="secondary" onPress={() => void handleReport(role, report.id, 'resolve').then(load)} /><Button label="Classer" variant="secondary" onPress={() => void handleReport(role, report.id, 'dismiss').then(load)} /></View></Card>) : <Text style={styles.muted}>Aucun signalement ouvert.</Text>}</View>
+    )}
   </ScrollView></Screen>;
 }
-const styles = StyleSheet.create({ container: { padding: 18, paddingBottom: 80 }, denied: { padding: 24, gap: 18 }, kicker: { color: colors.lime, fontWeight: '900', letterSpacing: 2 }, title: { color: colors.ivory, fontWeight: '900', fontSize: 30, lineHeight: 33, marginTop: 7 }, grid: { gap: 9 }, statValue: { color: colors.fuchsia, fontWeight: '900', fontSize: 32 }, statLabel: { color: colors.muted, textTransform: 'capitalize', marginTop: 3 }, sectionTitle: { color: colors.mint, fontWeight: '900', fontSize: 17 }, eyebrow: { color: colors.lime, fontWeight: '900', fontSize: 11, letterSpacing: 1.4 }, itemTitle: { color: colors.ivory, fontWeight: '900', fontSize: 18, marginTop: 4 }, meta: { color: colors.muted, lineHeight: 18, marginVertical: 7 }, actions: { flexDirection: 'row', gap: 7, marginVertical: 5, flexWrap: 'wrap' }, muted: { color: colors.muted, lineHeight: 20 } });
+
+const styles = StyleSheet.create({
+  container: { padding: 18, paddingBottom: 80 },
+  denied: { padding: 24, gap: 18 },
+  kicker: { color: colors.lime, fontWeight: '900', letterSpacing: 2 },
+  title: { color: colors.ivory, fontWeight: '900', fontSize: 30, lineHeight: 33, marginTop: 7 },
+  grid: { gap: 9 },
+  statValue: { color: colors.fuchsia, fontWeight: '900', fontSize: 32 },
+  statLabel: { color: colors.muted, textTransform: 'capitalize', marginTop: 3 },
+  sectionTitle: { color: colors.mint, fontWeight: '900', fontSize: 17 },
+  eyebrow: { color: colors.lime, fontWeight: '900', fontSize: 11, letterSpacing: 1.4 },
+  itemTitle: { color: colors.ivory, fontWeight: '900', fontSize: 18, marginTop: 4 },
+  meta: { color: colors.muted, lineHeight: 18, marginVertical: 7 },
+  actions: { flexDirection: 'row', gap: 7, marginVertical: 5, flexWrap: 'wrap' },
+  muted: { color: colors.muted, lineHeight: 20 },
+});
