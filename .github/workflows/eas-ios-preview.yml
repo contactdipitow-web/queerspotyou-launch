@@ -1,0 +1,46 @@
+name: EAS iOS preview build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/eas-ios-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Verify Expo authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::GitHub secret EXPO_TOKEN is not configured for this repository."
+            exit 1
+          fi
+          npx eas-cli@latest whoami
+
+      - name: Verify EAS project link
+        run: npx eas-cli@latest project:info
+
+      - name: Build installable iOS preview
+        run: npx eas-cli@latest build --platform ios --profile preview --non-interactive --wait
