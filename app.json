@@ -2,20 +2,31 @@
   "expo": {
     "name": "QUEERSPOT YOU",
     "slug": "queerspot-you",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "scheme": "queerspotyou",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": { "image": "./assets/icon.png", "resizeMode": "contain", "backgroundColor": "#0B0B16" },
     "ios": {
       "bundleIdentifier": "com.queerspotyou.app",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "QUEERSPOT YOU utilise votre position pour afficher les spots et établissements situés à proximité, notamment dans un rayon de 500 mètres lors d’un ajout."
       }
     },
+    "android": {
+      "package": "com.queerspotyou.app",
+      "adaptiveIcon": { "foregroundImage": "./assets/icon.png", "backgroundColor": "#0B0B16" },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
     "plugins": [
-      "expo-router"
-    ]
+      "expo-router",
+      ["expo-location", { "locationWhenInUsePermission": "Autoriser QUEERSPOT YOU à utiliser votre position pour trouver les spots à proximité." }],
+      "expo-secure-store"
+    ],
+    "experiments": { "typedRoutes": true }
   }
 }
