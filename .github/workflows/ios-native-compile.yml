@@ -11,7 +11,7 @@ permissions:
 jobs:
   compile:
     runs-on: macos-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,6 +23,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Verify native dependency versions
+        run: npm ls expo expo-modules-core react-native react-native-reanimated react-native-worklets
 
       - name: Generate iOS project
         run: npx expo prebuild --platform ios --clean
@@ -39,7 +42,7 @@ jobs:
           echo "Workspace: $WORKSPACE"
           echo "Scheme: $SCHEME"
 
-      - name: Compile Release for iOS Simulator without signing
+      - name: Archive Release for generic iOS device without signing
         shell: bash
         run: |
           set -o pipefail
@@ -47,7 +50,9 @@ jobs:
             -workspace "${{ steps.ios.outputs.workspace }}" \
             -scheme "${{ steps.ios.outputs.scheme }}" \
             -configuration Release \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/QUEERSPOTYOU.xcarchive" \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive
