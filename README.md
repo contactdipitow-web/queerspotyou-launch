@@ -6,8 +6,10 @@ The production web application and backend remain in the private main repository
 
 ## Validation
 
+The dependency graph is locked with `package-lock.json`. CI validates both Expo preflight and an unsigned Release archive for a generic iOS device before Expo Launch is retried.
+
 ```bash
-npm install
+npm ci
 npm run preflight:ios
 ```
 
