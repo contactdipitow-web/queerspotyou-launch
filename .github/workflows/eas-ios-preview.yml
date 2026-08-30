@@ -44,3 +44,5 @@ jobs:
 
       - name: Build installable iOS preview
         run: npx eas-cli@latest build --platform ios --profile preview --non-interactive --wait
+
+# refreshed after EXPO_TOKEN update
